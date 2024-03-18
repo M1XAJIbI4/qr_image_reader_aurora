@@ -10,8 +10,8 @@ class MethodChannelQrImageReaderAurora extends QrImageReaderAuroraPlatform {
   final methodChannel = const MethodChannel('qr_image_reader_aurora');
 
   @override
-  Future<String?> getPlatformVersion() async {
-    final version = await methodChannel.invokeMethod<String>('getPlatformVersion');
+  Future<String?> analyzeImage(String imagePath) async {
+    final version = await methodChannel.invokeMethod<String>('analyzeImage');
     return version;
   }
 }
