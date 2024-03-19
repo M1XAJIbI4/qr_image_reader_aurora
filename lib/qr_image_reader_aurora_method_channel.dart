@@ -11,7 +11,12 @@ class MethodChannelQrImageReaderAurora extends QrImageReaderAuroraPlatform {
 
   @override
   Future<String?> analyzeImage(String imagePath) async {
-    final version = await methodChannel.invokeMethod<String>('analyzeImage');
+    final version = await methodChannel.invokeMethod<String>(
+      'analyzeImage',
+      {
+        "imagePath": imagePath,
+      }
+,    );
     return version;
   }
 }

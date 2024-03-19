@@ -16,35 +16,28 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
-  final _qrImageReaderAuroraPlugin = QrImageReaderAurora();
+  static const _files = [
+    "/home/defaultuser/Pictures/qr_code.bmp",
+    "/home/defaultuser/Pictures/qr_code.jpg",
+    "/home/defaultuser/Pictures/qr_code.png",
+    "/home/defaultuser/Pictures/qr_code.tiff",
+    'asgag'
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    initPlatformState();
-  }
+  final _qrImageReaderAuroraPlugin = QrImageReaderAurora();
+  final _resultNotifier = ValueNotifier<String?>(null);
 
   // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
+  Future<String?> _analyzeImage(String filePath) async {
+    String? result;
     try {
-      platformVersion =
-          await _qrImageReaderAuroraPlugin.analyzeImage('FilePath') ?? 'Unknown platform version';
+      result = await _qrImageReaderAuroraPlugin.analyzeImage(filePath) ??
+          'Unknown platform version';
     } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
+      print("ERROR PLATFORM EXCEPTION ");
     }
 
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion;
-    });
+    return result;
   }
 
   @override
@@ -55,9 +48,41 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Plugin example app'),
         ),
         body: Center(
-          child: Text('Running on: $_platformVersion\n'),
+          child: ValueListenableBuilder<String?>(
+            valueListenable: _resultNotifier,
+            builder: (_, result, __) {
+              final text =
+                  (result ?? '').isNotEmpty ? result! : 'no qr code on file';
+              return AnimatedSwitcher(
+                duration: kThemeAnimationDuration,
+                child: Text(text),
+              );
+            },
+          ),
+        ),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.all(8.0) + const EdgeInsets.only(top: 80),
+          child: Column(
+            children: _files.map((e) => _getButton(e)).toList(),
+          ),
         ),
       ),
     );
+  }
+
+  Widget _getButton(String path) {
+    return TextButton(
+      onPressed: () async {
+        final result = await _analyzeImage(path);
+        _resultNotifier.value = result;
+      },
+      child: Text(path),
+    );
+  }
+
+  @override
+  void dispose() {
+    _resultNotifier.dispose();
+    super.dispose();
   }
 }

@@ -11,8 +11,9 @@ public:
 
 private:
     void onMethodCall(const MethodCall &call);
-    void onGetPlatformVersion(const MethodCall &call);
+    void onAnalyzeImage(const MethodCall &call);
     void unimplemented(const MethodCall &call);
+    std::string readBarcode(uint8_t* bits, int width, int height);
 };
 
 #endif /* FLUTTER_PLUGIN_QR_IMAGE_READER_AURORA_PLUGIN_H */
