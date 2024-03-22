@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:qr_image_reader_aurora/qr_image_reader_aurora.dart';
 
 void main() {
@@ -13,76 +16,105 @@ class MyApp extends StatefulWidget {
 
   @override
   State<MyApp> createState() => _MyAppState();
+  
 }
 
 class _MyAppState extends State<MyApp> {
   static const _files = [
-    "/home/defaultuser/Pictures/qr_code.bmp",
-    "/home/defaultuser/Pictures/qr_code.jpg",
-    "/home/defaultuser/Pictures/qr_code.png",
-    "/home/defaultuser/Pictures/qr_code.tiff",
-    'asgag'
+    "assets/qr_code_bmp.bmp",
+    "assets/qr_code_jpeg.jpeg",
+    "assets/qr_code_png.png",
+    "assets/qr_code_tiff.tiff",
   ];
 
   final _qrImageReaderAuroraPlugin = QrImageReaderAurora();
-  final _resultNotifier = ValueNotifier<String?>(null);
+  final _resultMaps = <String, ValueNotifier<String>>{};
+  bool _isAnalyzing = false;
 
-  // Platform messages are asynchronous, so we initialize in an async method.
   Future<String?> _analyzeImage(String filePath) async {
     String? result;
     try {
       result = await _qrImageReaderAuroraPlugin.analyzeImage(filePath) ??
-          'Unknown platform version';
+          'no qr code';
     } on PlatformException {
       print("ERROR PLATFORM EXCEPTION ");
     }
-
     return result;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    for (final f in _files) {
+      _resultMaps[f] = ValueNotifier<String>('');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin example app'),
-        ),
-        body: Center(
-          child: ValueListenableBuilder<String?>(
-            valueListenable: _resultNotifier,
-            builder: (_, result, __) {
-              final text =
-                  (result ?? '').isNotEmpty ? result! : 'no qr code on file';
-              return AnimatedSwitcher(
-                duration: kThemeAnimationDuration,
-                child: Text(text),
-              );
-            },
-          ),
-        ),
-        floatingActionButton: Padding(
-          padding: const EdgeInsets.all(8.0) + const EdgeInsets.only(top: 80),
-          child: Column(
-            children: _files.map((e) => _getButton(e)).toList(),
-          ),
-        ),
+        home: Scaffold(
+      appBar: AppBar(
+        title: const Text('Plugin example app'),
       ),
-    );
+      body: ListView.separated(
+        itemCount: _files.length,
+        itemBuilder: (_, index) {
+          final asset = _files[index];
+          return Column(
+            children: [
+              SizedBox(
+                height: 100,
+                child: Image.asset(asset),
+              ),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () => _onAnalyzeTap(asset),
+                    child: const Text('Analyze'),
+                  ),
+                  const SizedBox(width: 20),
+                  if (_resultMaps[asset] != null) ValueListenableBuilder(
+                    valueListenable: _resultMaps[asset]!, 
+                    builder: (_, res, __) => Text(res),
+                  )
+                ],
+              ),
+            ],
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+      ),
+    ));
   }
 
-  Widget _getButton(String path) {
-    return TextButton(
-      onPressed: () async {
-        final result = await _analyzeImage(path);
-        _resultNotifier.value = result;
-      },
-      child: Text(path),
-    );
+  Future<void> _onAnalyzeTap(String assetPath) async {
+    if (!_isAnalyzing) {
+      _isAnalyzing = true;
+      try {
+        final byteData = await rootBundle.load(assetPath);
+        final file = File('${(await getTemporaryDirectory()).path}/$assetPath');
+        await file.create(recursive: true);
+        await file.writeAsBytes(byteData.buffer
+            .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+
+        final analyzeResult = await _analyzeImage(file.path);
+        if (analyzeResult != null) {
+          _resultMaps[assetPath]?.value = analyzeResult;
+        }
+        await file.delete();
+      } catch (_) {
+      } finally {
+        _isAnalyzing = false;
+      }
+    }
   }
 
   @override
   void dispose() {
-    _resultNotifier.dispose();
+    for (final v in _resultMaps.values) {
+      v.dispose();
+    }
     super.dispose();
   }
 }
